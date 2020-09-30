@@ -79,7 +79,12 @@ def goThroughList(list):
                     year = ''.join(char for char in yearWithParens if char not in '()')
                 else:
                     year = 3333
-                album = Album(newname, year)
+                #album = Album(newname, year)
+                album = {
+                    "albumName": newname,
+                    "year": year,
+                    "trackList": []
+                }
             else:
                 artistAlbumList.append(album)
                 nameWithQuotes = member.b.contents[0]
@@ -91,13 +96,24 @@ def goThroughList(list):
                     year = ''.join(char for char in yearWithParens if char not in '()')
                 else:
                     year = 3333
-                album = Album(newname, year)
+                #album = Album(newname, year)
+                album = {
+                    "albumName": newname,
+                    "year": year,
+                    "trackList": []
+                }
         elif membertext == "listalbum-item":
             newurl = member.a.get('href')
             newurl2 = "https://www.azlyrics.com" + newurl[2:]
             newname = member.a.contents[0]
-            song = Song(newname, newurl2)
-            album.trackList.append(song)
+            #song = Song(newname, newurl2)
+            song = {
+                "songName": newname,
+                "songLyrics": "",
+                "year": 0,
+                "url": newurl2
+            }
+            album["trackList"].append(song)
     artistAlbumList.append(album)
 
 #goThroughList(itemized_list)
@@ -105,15 +121,13 @@ def goThroughList(list):
 def testList(test):
     for each in test:
         print("*****")
-        print(each.albumName, each.year)
+        print(each["albumName"], each["year"])
         print("*****")
-        for song in each.trackList:
-            print(song.songName)
-            print(song.url)
+        for song in each["trackList"]:
+            print(song["songName"])
+            print(song["url"])
 
 #testList(artistAlbumList)
-
-
 
 def getLyricsForArtist(artistname):
     url = "https://www.azlyrics.com/" + artistname[0]+ "/" + artistname + ".html"
@@ -126,8 +140,8 @@ def getLyricsForArtist(artistname):
 
     goThroughList(itemized_list)
     testList(artistAlbumList)
-    jsonStr = json.dumps(artistAlbumList)
-    print(jsonStr)
+    #jsonStr = json.dumps(artistAlbumList)
+    #print(jsonStr)
 
 
 getLyricsForArtist("kimpetras")
