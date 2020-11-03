@@ -3,33 +3,22 @@ import urllib.request
 import time
 import random
 import json
-
-# TODO: replace classes with dicts to be serializable
-
-class Album:
-    def __init__(self, albumName, year):
-        self.albumName = albumName
-        self.year = year
-        self.trackList = []
-
-class Song:
-    def __init__(self, songName, url, songLyrics=""):
-        self.songName = songName
-        self.songLyrics = songLyrics
-        self.year = 0
-        self.url = url
+import pprint
 
 def getLink(url):
 	waitTime = random.randrange(10,20,1)
 	time.sleep(waitTime)
-	response = urllib.request.urlopen(url)
+	try:
+		response = urllib.request.urlopen(url)
+	except urllib.error.HTTPError as e:
+		print(e)
 	html = response.read()
 	return html
 
 def getLyrics(finishedResponse):
 	soup = BeautifulSoup(finishedResponse, 'html.parser')
 	lyricsBlock = soup.find("div", attrs={"class":"ringtone"}).find_next_sibling("div")
-	print(lyricsBlock)
+	return lyricsBlock
 
 # ring = [x for x in artistAlbumList if x.albumName == "\"The Album\""]
 # print(ring[0].trackList)
@@ -39,7 +28,6 @@ def getAnAlbumsLyrics(album):
     	songHtml = getLink(each.url)
     	songLyrics = getLyrics(songHtml)
     	print(songLyrics)
-
 
 ######
 
@@ -62,7 +50,10 @@ def getAnAlbumsLyrics(album):
 
 # artistAlbumList = []
 
-artistAlbumList = []
+artistAlbumList = {
+    "name": "",
+    "albums": []
+}
 
 def goThroughList(list):
     album = ""
@@ -86,7 +77,7 @@ def goThroughList(list):
                     "trackList": []
                 }
             else:
-                artistAlbumList.append(album)
+                artistAlbumList["albums"].append(album)
                 nameWithQuotes = member.b.contents[0]
                 newname = nameWithQuotes.replace("\"", "")
                 member.b.extract()
@@ -104,7 +95,10 @@ def goThroughList(list):
                 }
         elif membertext == "listalbum-item":
             newurl = member.a.get('href')
-            newurl2 = "https://www.azlyrics.com" + newurl[2:]
+            if newurl.startswith("https://www.azlyrics.com"):
+                newurl2 = newurl
+            else:
+                newurl2 = "https://www.azlyrics.com" + newurl[2:]
             newname = member.a.contents[0]
             #song = Song(newname, newurl2)
             song = {
@@ -114,22 +108,30 @@ def goThroughList(list):
                 "url": newurl2
             }
             album["trackList"].append(song)
-    artistAlbumList.append(album)
+    artistAlbumList["albums"].append(album)
 
-#goThroughList(itemized_list)
 
-def testList(test):
-    for each in test:
+def testList(artist):
+    for album in artist["albums"]:
         print("*****")
-        print(each["albumName"], each["year"])
+        print(album["albumName"], album["year"])
         print("*****")
-        for song in each["trackList"]:
+        for song in album["trackList"]:
             print(song["songName"])
             print(song["url"])
+
+def createFile(artist):
+    url = "your url here"
+    f = open(url, "w+")
+    pprint.pprint(artist)
+    jsonStr = json.dumps(artistAlbumList)
+    f.write(jsonStr)
+    f.close
 
 #testList(artistAlbumList)
 
 def getLyricsForArtist(artistname):
+	# TODO - bands starting with a number have a 19 prefix
     url = "https://www.azlyrics.com/" + artistname[0]+ "/" + artistname + ".html"
     print(url)
     response = urllib.request.urlopen(url)
@@ -138,10 +140,22 @@ def getLyricsForArtist(artistname):
     listalbum = bigSoup.find("div", attrs={"id":"listAlbum"})
     itemized_list = listalbum.find_all("div")
 
+    artistAlbumList["name"] = artistname
     goThroughList(itemized_list)
-    testList(artistAlbumList)
-    #jsonStr = json.dumps(artistAlbumList)
-    #print(jsonStr)
+    getAnArtistsLyrics(artistAlbumList)
+    createFile(artistAlbumList)
 
+def cleanUpTags(tagged):
+    # basic cleanup. further clean-up needs to be done somewhere else
+    stringifiedSongLyrics = str(tagged)
+    removedBreaks = stringifiedSongLyrics.replace("<br/>","")
+    removedOpenDivs = removedBreaks.replace("<div>","")
+    removedClosedDivs = removedOpenDivs.replace("</div>","")
+    return removedClosedDivs
 
-getLyricsForArtist("kimpetras")
+def getAnArtistsLyrics(artist):
+    for album in artist["albums"]:
+        for song in album["trackList"]:
+            songHtml = getLink(song["url"])
+            songLyrics = getLyrics(songHtml)
+            song["lyrics"] = cleanUpTags(songLyrics)
