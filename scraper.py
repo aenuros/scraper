@@ -6,7 +6,7 @@ import json
 import pprint
 
 def getLink(url):
-	waitTime = random.randrange(10,20,1)
+	waitTime = random.randrange(30,80,1)
 	time.sleep(waitTime)
 	try:
 		response = urllib.request.urlopen(url)
@@ -18,6 +18,7 @@ def getLink(url):
 def getLyrics(finishedResponse):
 	soup = BeautifulSoup(finishedResponse, 'html.parser')
 	lyricsBlock = soup.find("div", attrs={"class":"ringtone"}).find_next_sibling("div")
+	print("~~~~~~~~~lYRICS bLOCK", lyricsBlock)
 	return lyricsBlock
 
 # ring = [x for x in artistAlbumList if x.albumName == "\"The Album\""]
@@ -25,9 +26,9 @@ def getLyrics(finishedResponse):
 
 def getAnAlbumsLyrics(album):
     for each in album[0].trackList:
-    	songHtml = getLink(each.url)
-    	songLyrics = getLyrics(songHtml)
-    	print(songLyrics)
+        songHtml = getLink(each.url)
+        songLyrics = getLyrics(songHtml)
+        print(songLyrics)
 
 ######
 
@@ -58,56 +59,59 @@ artistAlbumList = {
 def goThroughList(list):
     album = ""
     for member in list:
-        membertext = member['class'][0]
-        if membertext == "album":
-            if album == "" :
-                nameWithQuotes = member.b.contents[0]
-                newname = nameWithQuotes.replace("\"", "")
-                member.b.extract()
-                year = 0
-                if len(member) > 0:
-                    yearWithParens = member.contents[1]
-                    year = ''.join(char for char in yearWithParens if char not in '()')
+        print("MEMBER", member)
+        if member.has_key('class'):
+            membertext = member['class'][0]
+            if membertext == "album":
+                if album == "" :
+                    nameWithQuotes = member.b.contents[0]
+                    newname = nameWithQuotes.replace("\"", "")
+                    member.b.extract()
+                    year = 0
+                    if len(member) > 0:
+                        yearWithParens = member.contents[1]
+                        year = ''.join(char for char in yearWithParens if char not in '()')
+                    else:
+                        year = 3333
+                    #album = Album(newname, year)
+                    album = {
+                        "albumName": newname,
+                        "year": year,
+                        "trackList": []
+                    }
                 else:
-                    year = 3333
-                #album = Album(newname, year)
-                album = {
-                    "albumName": newname,
-                    "year": year,
-                    "trackList": []
-                }
-            else:
-                artistAlbumList["albums"].append(album)
-                nameWithQuotes = member.b.contents[0]
-                newname = nameWithQuotes.replace("\"", "")
-                member.b.extract()
-                year = 0
-                if len(member) > 0:
-                    yearWithParens = member.contents[1]
-                    year = ''.join(char for char in yearWithParens if char not in '()')
-                else:
-                    year = 3333
-                #album = Album(newname, year)
-                album = {
-                    "albumName": newname,
-                    "year": year,
-                    "trackList": []
-                }
-        elif membertext == "listalbum-item":
-            newurl = member.a.get('href')
-            if newurl.startswith("https://www.azlyrics.com"):
-                newurl2 = newurl
-            else:
-                newurl2 = "https://www.azlyrics.com" + newurl[2:]
-            newname = member.a.contents[0]
-            #song = Song(newname, newurl2)
-            song = {
-                "songName": newname,
-                "songLyrics": "",
-                "year": 0,
-                "url": newurl2
-            }
-            album["trackList"].append(song)
+                    artistAlbumList["albums"].append(album)
+                    nameWithQuotes = member.b.contents[0]
+                    newname = nameWithQuotes.replace("\"", "")
+                    member.b.extract()
+                    year = 0
+                    if len(member) > 0:
+                        yearWithParens = member.contents[1]
+                        year = ''.join(char for char in yearWithParens if char not in '()')
+                    else:
+                        year = 3333
+                    #album = Album(newname, year)
+                    album = {
+                        "albumName": newname,
+                        "year": year,
+                        "trackList": []
+                    }
+            elif membertext == "listalbum-item":
+                if member.find('a'):
+                    newurl = member.a.get('href')
+                    if newurl.startswith("https://www.azlyrics.com"):
+                        newurl2 = newurl
+                    else:
+                        newurl2 = "https://www.azlyrics.com" + newurl
+                    newname = member.a.contents[0]
+                    #song = Song(newname, newurl2)
+                    song = {
+                        "songName": newname,
+                        "songLyrics": "",
+                        "year": 0,
+                        "url": newurl2
+                    }
+                    album["trackList"].append(song)
     artistAlbumList["albums"].append(album)
 
 
@@ -120,8 +124,8 @@ def testList(artist):
             print(song["songName"])
             print(song["url"])
 
-def createFile(artist):
-    url = "your url here"
+def createFile(artist, filename):
+    url = filename
     f = open(url, "w+")
     pprint.pprint(artist)
     jsonStr = json.dumps(artistAlbumList)
@@ -143,7 +147,7 @@ def getLyricsForArtist(artistname):
     artistAlbumList["name"] = artistname
     goThroughList(itemized_list)
     getAnArtistsLyrics(artistAlbumList)
-    createFile(artistAlbumList)
+    createFile(artistAlbumList, artistname)
 
 def cleanUpTags(tagged):
     # basic cleanup. further clean-up needs to be done somewhere else
@@ -155,7 +159,16 @@ def cleanUpTags(tagged):
 
 def getAnArtistsLyrics(artist):
     for album in artist["albums"]:
+        print("ALBUM: ", album)
         for song in album["trackList"]:
+            print("SONG", song)
             songHtml = getLink(song["url"])
             songLyrics = getLyrics(songHtml)
             song["lyrics"] = cleanUpTags(songLyrics)
+
+#getLyricsForArtist('amywinehouse')
+
+val = input("Enter artist name\n")
+print(val)
+
+getLyricsForArtist(val)
